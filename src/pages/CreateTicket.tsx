@@ -37,9 +37,12 @@ export default function CreateTicket() {
     setSubmitting(true);
 
     try {
-      const assignedTeam = formData.ticketType === 'Customs Clearance Consultation' 
-        ? 'Customs Inland Service' 
-        : 'Trucking / Pricing';
+      let assignedTeam = 'Trucking / Pricing';
+      if (formData.ticketType === 'Customs Clearance Consultation') {
+        assignedTeam = 'Customs Inland Service';
+      } else if (formData.ticketType === 'LMS Overseas Request') {
+        assignedTeam = 'LMS Overseas Service';
+      }
 
       const deadlineDate = formData.deadline ? new Date(formData.deadline) : null;
 
@@ -48,8 +51,10 @@ export default function CreateTicket() {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         createdBy: profile.uid,
+        creatorName: profile.displayName,
         department: profile.department,
         status: 'New',
+        oppResult: 'Quoting', // Automatically start with Quoting
         assignedTeam,
         assignedTo: null,
         deadline: deadlineDate ? deadlineDate : null,
@@ -95,6 +100,7 @@ export default function CreateTicket() {
                 <Select name="ticketType" value={formData.ticketType} onChange={handleChange} required>
                   <option value="Inland Trucking Quotation">Inland Trucking Quotation</option>
                   <option value="Customs Clearance Consultation">Customs Clearance Consultation</option>
+                  <option value="LMS Overseas Request">LMS Overseas Request</option>
                 </Select>
               </div>
 

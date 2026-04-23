@@ -13,11 +13,20 @@ import { Search, Filter } from 'lucide-react';
 export default function TicketList() {
   const { profile } = useAuth();
   const [tickets, setTickets] = useState<any[]>([]);
+  const [userMap, setUserMap] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+
+  useEffect(() => {
+    getDocs(collection(db, 'users')).then(snap => {
+      const map: Record<string, string> = {};
+      snap.forEach(d => { map[d.id] = d.data().displayName || 'Unknown'; });
+      setUserMap(map);
+    });
+  }, []);
 
   useEffect(() => {
     if (!profile) return;
@@ -46,8 +55,10 @@ export default function TicketList() {
   }, [profile]);
 
   const filteredTickets = tickets.filter(ticket => {
+    const creator = ticket.creatorName || userMap[ticket.createdBy] || 'Unknown';
     const matchesSearch = ticket.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          ticket.ticketType?.toLowerCase().includes(searchTerm.toLowerCase());
+                          ticket.ticketType?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          creator.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'All' || ticket.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -64,7 +75,7 @@ export default function TicketList() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
           <Input 
             className="pl-10 border-transparent bg-white focus:bg-white focus:ring-2 focus:ring-blue-500 shadow-sm" 
-            placeholder="Search by customer or ticket type..." 
+            placeholder="Search by customer, ticket type, or creator..." 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -97,17 +108,18 @@ export default function TicketList() {
                 <th className="px-6 py-4">Type & Route</th>
                 <th className="px-6 py-4">Priority</th>
                 <th className="px-6 py-4">Status</th>
+                <th className="px-6 py-4">Created By</th>
                 <th className="px-6 py-4">Created Date</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100">
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-neutral-500">Loading tickets...</td>
+                  <td colSpan={6} className="px-6 py-8 text-center text-neutral-500">Loading tickets...</td>
                 </tr>
               ) : filteredTickets.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-neutral-500">No tickets found.</td>
+                  <td colSpan={6} className="px-6 py-8 text-center text-neutral-500">No tickets found.</td>
                 </tr>
               ) : (
                 filteredTickets.map(ticket => (
@@ -130,13 +142,23 @@ export default function TicketList() {
                         {ticket.priority}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 flex flex-col gap-2 items-start">
                       <Badge variant={
                         ['Completed', 'Closed'].includes(ticket.status) ? 'success' :
                         ticket.status === 'New' ? 'default' : 'warning'
                       }>
                         {ticket.status}
                       </Badge>
+                      <Badge variant={
+                        ticket.oppResult === 'Won' ? 'success' :
+                        ticket.oppResult === 'Failed' ? 'error' :
+                        ticket.oppResult === 'Follow up' ? 'warning' : 'neutral'
+                      } className="text-[10px]">
+                        Op: {ticket.oppResult || 'Quoting'}
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm text-slate-700 font-medium">{ticket.creatorName || userMap[ticket.createdBy] || 'Unknown'}</div>
                     </td>
                     <td className="px-6 py-4 text-neutral-500">
                       {ticket.createdAt ? format(ticket.createdAt.toDate(), 'MMM d, yyyy') : '...'}

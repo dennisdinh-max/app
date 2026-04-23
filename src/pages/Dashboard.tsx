@@ -11,7 +11,16 @@ import { Badge } from '../components/ui/badge';
 export default function Dashboard() {
   const { profile } = useAuth();
   const [stats, setStats] = useState({ total: 0, pending: 0, completed: 0, recent: [] as any[] });
+  const [userMap, setUserMap] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getDocs(collection(db, 'users')).then(snap => {
+      const map: Record<string, string> = {};
+      snap.forEach(d => { map[d.id] = d.data().displayName || 'Unknown'; });
+      setUserMap(map);
+    });
+  }, []);
 
   useEffect(() => {
     async function fetchStats() {
@@ -141,23 +150,35 @@ export default function Dashboard() {
                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
                         {ticket.id.substring(0, 8).toUpperCase()}
                       </span>
-                      <Badge variant={
-                        ticket.status === 'Completed' || ticket.status === 'Closed' ? 'success' :
-                        ticket.status === 'New' ? 'default' : 'warning'
-                      }>
-                        {ticket.status}
-                      </Badge>
+                      <div className="flex gap-2 items-center">
+                        <Badge variant={
+                          ticket.oppResult === 'Won' ? 'success' :
+                          ticket.oppResult === 'Failed' ? 'error' :
+                          ticket.oppResult === 'Follow up' ? 'warning' : 'neutral'
+                        } className="text-[10px]">
+                          Op: {ticket.oppResult || 'Quoting'}
+                        </Badge>
+                        <Badge variant={
+                          ticket.status === 'Completed' || ticket.status === 'Closed' ? 'success' :
+                          ticket.status === 'New' ? 'default' : 'warning'
+                        }>
+                          {ticket.status}
+                        </Badge>
+                      </div>
                     </div>
                     <h3 className="text-sm font-bold text-slate-800 truncate">
                        {ticket.customerName} - {ticket.ticketType}
                     </h3>
                     <div className="flex items-center justify-between mt-3 text-[11px] text-slate-500">
-                      <div className="flex items-center gap-1">📍 {ticket.origin} {ticket.destination ? `→ ${ticket.destination}` : ''}</div>
-                      <div>
-                        {ticket.priority === 'Critical' ? 'Critical ⚡' : ticket.priority === 'Urgent' ? 'Urgent 🔺' : 'Normal'}
-                        <span className="ml-2 text-slate-400">
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-1">📍 {ticket.origin} {ticket.destination ? `→ ${ticket.destination}` : ''}</div>
+                        <div className="flex items-center gap-1">👤 <span className="font-medium text-slate-600">{ticket.creatorName || userMap[ticket.createdBy] || "Unknown"}</span></div>
+                      </div>
+                      <div className="text-right">
+                        <div>{ticket.priority === 'Critical' ? 'Critical ⚡' : ticket.priority === 'Urgent' ? 'Urgent 🔺' : 'Normal'}</div>
+                        <div className="mt-1 text-slate-400">
                           {ticket.createdAt ? format(ticket.createdAt.toDate(), 'MMM d') : ''}
-                        </span>
+                        </div>
                       </div>
                     </div>
                   </Link>

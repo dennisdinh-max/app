@@ -18,15 +18,17 @@ export default function TicketDetail() {
   const navigate = useNavigate();
 
   const [ticket, setTicket] = useState<any>(null);
+  const [creatorNameFallback, setCreatorNameFallback] = useState<string>('');
   const [comments, setComments] = useState<any[]>([]);
   const [history, setHistory] = useState<any[]>([]);
-  
+
   const [newComment, setNewComment] = useState('');
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [filesSelected, setFilesSelected] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Fetch Ticket and Fallback Name
   useEffect(() => {
     if (!ticketId || !profile) return;
 
@@ -34,7 +36,17 @@ export default function TicketDetail() {
     const ticketRef = doc(db, 'tickets', ticketId);
     const unsubscribeTicket = onSnapshot(ticketRef, (docSnap) => {
       if (docSnap.exists()) {
-        setTicket({ id: docSnap.id, ...docSnap.data() });
+        const data = docSnap.data();
+        setTicket({ id: docSnap.id, ...data });
+        
+        // Fetch Creator Fallback Name
+        if (!data.creatorName && data.createdBy) {
+          getDoc(doc(db, 'users', data.createdBy)).then(userSnap => {
+            if (userSnap.exists()) {
+              setCreatorNameFallback(userSnap.data().displayName || 'Unknown');
+            }
+          });
+        }
       } else {
         navigate('/tickets');
       }
@@ -78,6 +90,30 @@ export default function TicketDetail() {
     } catch (e) {
       console.error(e);
       alert('Failed to update status.');
+    } finally {
+      setStatusUpdating(false);
+    }
+  };
+
+  const handleOppResultChange = async (newResult: string) => {
+    if (!ticket || !profile) return;
+    setStatusUpdating(true);
+    try {
+      await updateDoc(doc(db, 'tickets', ticket.id), {
+        oppResult: newResult,
+        updatedAt: serverTimestamp()
+      });
+
+      await addDoc(collection(db, `tickets/${ticket.id}/history`), {
+        ticketId: ticket.id,
+        createdAt: serverTimestamp(),
+        createdBy: profile.uid,
+        action: 'opp_result_changed',
+        details: `Opp Result updated to ${newResult}`
+      });
+    } catch (e) {
+      console.error(e);
+      alert('Failed to update Opp Result.');
     } finally {
       setStatusUpdating(false);
     }
@@ -142,8 +178,9 @@ export default function TicketDetail() {
   };
 
   if (!ticket) return <div className="p-8">Loading...</div>;
-
+  
   const canChangeStatus = profile?.role !== 'Sales';
+  const canChangeOppResult = profile?.uid === ticket.createdBy || profile?.role === 'Admin' || profile?.role === 'Management';
 
   return (
     <div className="max-w-6xl mx-auto flex flex-col lg:flex-row gap-6">
@@ -257,22 +294,39 @@ export default function TicketDetail() {
           </CardHeader>
           <CardContent className="pt-4 space-y-4">
             
-            <div>
-              <p className="text-xs font-medium text-neutral-500 mb-1">Status</p>
-              <Select 
-                value={ticket.status} 
-                onChange={(e) => handleStatusChange(e.target.value)}
-                disabled={!canChangeStatus || statusUpdating}
-                className="w-full"
-              >
-                <option value="New">New</option>
-                <option value="Assigned">Assigned</option>
-                <option value="In Progress">In Progress</option>
-                <option value="Waiting Info">Waiting Info</option>
-                <option value="Quoted">Quoted</option>
-                <option value="Completed">Completed</option>
-                <option value="Closed">Closed</option>
-              </Select>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs font-medium text-neutral-500 mb-1">Status</p>
+                <Select 
+                  value={ticket.status} 
+                  onChange={(e) => handleStatusChange(e.target.value)}
+                  disabled={!canChangeStatus || statusUpdating}
+                  className="w-full"
+                >
+                  <option value="New">New</option>
+                  <option value="Assigned">Assigned</option>
+                  <option value="In Progress">In Progress</option>
+                  <option value="Waiting Info">Waiting Info</option>
+                  <option value="Quoted">Quoted</option>
+                  <option value="Completed">Completed</option>
+                  <option value="Closed">Closed</option>
+                </Select>
+              </div>
+
+              <div>
+                <p className="text-xs font-medium text-neutral-500 mb-1">Opp Result</p>
+                <Select 
+                  value={ticket.oppResult || 'Quoting'} 
+                  onChange={(e) => handleOppResultChange(e.target.value)}
+                  disabled={!canChangeOppResult || statusUpdating}
+                  className="w-full"
+                >
+                  <option value="Quoting">Quoting</option>
+                  <option value="Won">Won</option>
+                  <option value="Failed">Failed</option>
+                  <option value="Follow up">Follow up</option>
+                </Select>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -300,6 +354,10 @@ export default function TicketDetail() {
             )}
             
             <div className="pt-4 border-t border-neutral-100 text-xs text-neutral-500">
+              <div className="flex items-center justify-between mb-1">
+                <span>Created By:</span>
+                <span className="font-medium text-slate-700">{ticket.creatorName || creatorNameFallback || "Unknown"}</span>
+              </div>
               <div className="flex items-center justify-between mb-1">
                 <span>Created:</span>
                 <span>{ticket.createdAt ? format(ticket.createdAt.toDate(), 'MMM d, h:mm a') : ''}</span>
