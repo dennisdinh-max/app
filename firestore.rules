@@ -1,0 +1,57 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- PRIMITIVES --- //
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Since we don't have a reliable way to check role purely from incoming without initial setup,
+    // we allow reading the user document if authenticated
+    function isUserActive() {
+      return isAuthenticated();
+    }
+
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (getUserRole() == 'Admin' || getUserRole() == 'Management');
+    }
+
+    // For simplicity, ANY authenticated user can read minimal data for now (to support app boot)
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      // Only the user or admin can update their profile.
+      allow create, update: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    match /tickets/{ticketId} {
+      // Allow any active user to read tickets
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin();
+      
+      match /comments/{commentId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated();
+        allow update: if isAuthenticated() && request.auth.uid == resource.data.createdBy;
+      }
+      
+      match /history/{historyId} {
+        allow read: if isAuthenticated();
+        // The client must emit a history log when updating a ticket
+        allow create: if isAuthenticated();
+      }
+    }
+  }
+}

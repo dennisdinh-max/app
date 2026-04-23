@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+body {
+  font-family: 'Inter', -apple-system, sans-serif;
+  background-color: #f8fafc; /* bg-slate-50 */
+}
+
+/* Status Chip */
+.status-chip {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 9999px;
+}
+
+/* Thread bubble */
+.thread-bubble {
+  border-radius: 12px;
+  padding: 10px 14px;
+  max-width: 85%;
+  font-size: 13px;
+}

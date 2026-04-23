@@ -1,0 +1,87 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with role-based access",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["Sales", "Customs Inland Service", "Trucking / Pricing", "Team Leader", "Management", "Admin"] },
+        "department": { "type": "string" },
+        "createdAt": { "type": "timestamp" },
+        "status": { "type": "string", "enum": ["active", "inactive"] }
+      },
+      "required": ["email", "displayName", "role", "createdAt"]
+    },
+    "Ticket": {
+      "title": "Ticket",
+      "description": "Service request ticket",
+      "type": "object",
+      "properties": {
+        "ticketType": { "type": "string", "enum": ["Customs Clearance Consultation", "Inland Trucking Quotation"] },
+        "createdAt": { "type": "timestamp" },
+        "updatedAt": { "type": "timestamp" },
+        "createdBy": { "type": "string" },
+        "department": { "type": "string" },
+        "customerName": { "type": "string" },
+        "shipmentType": { "type": "string", "enum": ["FCL", "LCL", "Air", "Inland"] },
+        "cargoDescription": { "type": "string" },
+        "volumeWeight": { "type": "string" },
+        "origin": { "type": "string" },
+        "destination": { "type": "string" },
+        "specialRequirements": { "type": "string" },
+        "deadline": { "type": "timestamp" },
+        "priority": { "type": "string", "enum": ["Normal", "Urgent", "Critical"] },
+        "assignedTeam": { "type": "string", "enum": ["Customs Inland Service", "Trucking / Pricing"] },
+        "assignedTo": { "type": "string" },
+        "status": { "type": "string", "enum": ["New", "Assigned", "In Progress", "Waiting Info", "Quoted", "Completed", "Closed"] }
+      },
+      "required": ["ticketType", "createdAt", "updatedAt", "createdBy", "customerName", "shipmentType", "status"]
+    },
+    "Comment": {
+      "title": "Comment",
+      "description": "Communication thread message",
+      "type": "object",
+      "properties": {
+        "ticketId": { "type": "string" },
+        "createdAt": { "type": "timestamp" },
+        "createdBy": { "type": "string" },
+        "content": { "type": "string" },
+        "attachments": { "type": "array" }
+      },
+      "required": ["ticketId", "createdAt", "createdBy", "content"]
+    },
+    "HistoryLog": {
+      "title": "History Log",
+      "description": "Audit log for ticket activities",
+      "type": "object",
+      "properties": {
+        "ticketId": { "type": "string" },
+        "createdAt": { "type": "timestamp" },
+        "createdBy": { "type": "string" },
+        "action": { "type": "string" },
+        "details": { "type": "string" }
+      },
+      "required": ["ticketId", "createdAt", "createdBy", "action", "details"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles"
+    },
+    "/tickets/{ticketId}": {
+      "schema": { "$ref": "#/entities/Ticket" },
+      "description": "System tickets"
+    },
+    "/tickets/{ticketId}/comments/{commentId}": {
+      "schema": { "$ref": "#/entities/Comment" },
+      "description": "Thread comments per ticket"
+    },
+    "/tickets/{ticketId}/history/{historyId}": {
+      "schema": { "$ref": "#/entities/HistoryLog" },
+      "description": "Audit log per ticket"
+    }
+  }
+}
